@@ -53,6 +53,8 @@ public:
         if (current_) current_->Draw();
     }
 
+    // Mirrors the old game loop behavior: update and draw the current scene,
+    // then process a pending scene transition.
     void UpdateAndDraw() {
         if (!current_) {
             quitRequested_ = true;
