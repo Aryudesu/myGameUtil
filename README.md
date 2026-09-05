@@ -6,17 +6,44 @@ C++17 / DxLib 向けのゲーム制作共通Utilityです。
 
 ## Included utilities
 
-### InputManager
+- `InputManager`: Down / Pressed / Released / HoldFrames
+- `ImageManager`: 通常・分割画像の読み込み、描画、回転拡縮、破棄
+- `SoundManager`: SE / BGM の読み込み、再生、停止、音量管理
+- `IniConfig`: string / int / float / bool / CSVリスト。`[Section]` と `>Section` に対応
+- `Logger`: レベル別ログ、ファイルローテーション、Visual Studio Output、DxLibオーバーレイ、時間計測
 
-- キー押下状態 `IsDown`
-- 押した瞬間 `IsPressed`
-- 離した瞬間 `IsReleased`
-- 押下継続フレーム数 `HoldFrames`
-- 256キーを1回の `GetHitKeyStateAll` で更新
+## Include all
 
 ```cpp
-#include <mygame/input/InputManager.h>
+#include <mygame/myGameUtil.h>
+```
 
+## Visual Studio での動作確認
+
+`sample/BasicSample.cpp` は5つのUtilityをまとめて確認するためのスモークテストです。画像・WAV・INIは実行時に自動生成するため、追加素材は不要です。
+
+1. DxLibを使用できる空のC++プロジェクトを作成する（既存のDxLibプロジェクトに一時追加してもOK）。
+2. プロジェクトのプロパティ → `C/C++` → `全般` → `追加のインクルード ディレクトリ` に、このリポジトリの `include` フォルダを追加する。
+3. C++言語標準を C++17 以上にする。
+4. `sample/BasicSample.cpp` をプロジェクトへ追加する。
+5. x64など、普段DxLibを動かしている構成でビルドして実行する。
+
+起動後は次を確認できます。
+
+- `InputManager`: SPACEの押下フレーム数が増える。
+- `IniConfig`: 画面上で `OK` になる。
+- `ImageManager`: 自動生成したチェック柄画像と回転画像が表示される。
+- `SoundManager`: `SPACE` を押すと短いテスト音が鳴る。
+- `Logger`: `log/myGameUtil-sample.log` が生成され、`F1` でログオーバーレイを表示できる。
+- `ESC`: 終了。
+
+画面上で5項目が `OK` になり、SPACE/F1の操作ができれば基本動作確認完了です。
+
+## Individual examples
+
+### InputManager
+
+```cpp
 mygame::InputManager::GetInstance().Update();
 if (mygame::InputManager::GetInstance().IsPressed(KEY_INPUT_SPACE)) {
     // SPACEを押した瞬間
@@ -25,15 +52,7 @@ if (mygame::InputManager::GetInstance().IsPressed(KEY_INPUT_SPACE)) {
 
 ### ImageManager
 
-- 通常画像の読み込み
-- `LoadDivGraph` を使ったスプライトシート分割読み込み
-- IDごとの画像管理
-- サイズ取得・通常描画・回転拡縮描画
-- RAIIによる一括破棄
-
 ```cpp
-#include <mygame/graphics/ImageManager.h>
-
 auto& images = mygame::ImageManager::GetInstance();
 images.Load(0, "player.png");
 images.Draw(0, 100, 100);
@@ -41,15 +60,7 @@ images.Draw(0, 100, 100);
 
 ### SoundManager
 
-- SE / BGM を別管理
-- BGMループポイント指定
-- SE / BGM個別音量
-- 再生・停止・再生状態確認
-- ゲーム固有の音量変更キーや表示処理には依存しない
-
 ```cpp
-#include <mygame/audio/SoundManager.h>
-
 auto& sound = mygame::SoundManager::GetInstance();
 sound.LoadSe(0, "decision.wav");
 sound.PlaySe(0);
@@ -57,58 +68,17 @@ sound.PlaySe(0);
 
 ### IniConfig
 
-DxLibに依存しないINI設定読み込みです。
-
-- `string / int / float / bool`
-- CSV形式のリスト値
-- 通常の `[Section]` 形式
-- 既存プロジェクトで使用していた `>Section` 形式にも対応
-
-```ini
-[Window]
-Width = 1280
-Height = 720
-Fullscreen = false
-
-[Player]
-Speed = 3.5
-Colors = red, green, blue
-```
-
 ```cpp
-#include <mygame/config/IniConfig.h>
-
 mygame::IniConfig config("config.ini");
 const int width = config.GetInt("Window", "Width", 1280);
 ```
 
 ### Logger
 
-- Trace / Debug / Info / Warn / Error / Fatal
-- ファイル出力
-- ログローテーション
-- Visual Studio Outputへの出力
-- DxLib画面上のログオーバーレイ
-- スコープ処理時間計測
-
 ```cpp
-#include <mygame/debug/Logger.h>
-
 mygame::Logger::GetInstance().Initialize("log/game.log");
 MYGAME_LOG_INFO("game start");
-
-{
-    MYGAME_LOG_TIME_SCOPE("update");
-    // 処理
-}
-
 mygame::Logger::GetInstance().UpdateAndDrawOverlay();
-```
-
-## Include all
-
-```cpp
-#include <mygame/myGameUtil.h>
 ```
 
 ## Requirements
