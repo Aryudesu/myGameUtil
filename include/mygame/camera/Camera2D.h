@@ -8,12 +8,16 @@ namespace mygame {
 
 class Camera2D {
 public:
-    void SetPosition(Vec2 position) { position_ = position; }
+    void SetPosition(Vec2 position) {
+        position_ = position;
+        ClampToWorld();
+    }
     Vec2 Position() const { return position_; }
 
     void SetViewport(float width, float height) {
         viewportWidth_ = std::max(0.0f, width);
         viewportHeight_ = std::max(0.0f, height);
+        ClampToWorld();
     }
 
     void SetWorldBounds(const RectF& bounds) {
