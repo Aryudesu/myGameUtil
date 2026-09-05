@@ -1,6 +1,7 @@
 #include <DxLib.h>
 #include <mygame/myGameUtil.h>
 
+#include <cmath>
 #include <cstdint>
 #include <fstream>
 #include <memory>
@@ -99,7 +100,7 @@ const char* Ok(bool value) { return value ? "OK" : "NG"; }
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ChangeWindowMode(TRUE);
-    SetGraphMode(960, 640, 32);
+    SetGraphMode(1000, 780, 32);
     if (DxLib_Init() == -1) return -1;
     SetDrawScreen(DX_SCREEN_BACK);
 
@@ -148,6 +149,51 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     sceneManager.Update();
     const bool sceneOk = sceneStarted && sceneEntered && sceneExited && !sceneManager.Running();
 
+    mygame::Timer timer(0.5);
+    timer.Start();
+    timer.Update(0.25);
+    const bool timerHalfway = timer.Running() && std::abs(timer.Progress() - 0.5) < 0.001;
+    timer.Update(0.25);
+    const bool timerOk = timerHalfway && timer.Finished() && timer.FinishedThisUpdate();
+
+    mygame::Random random(12345);
+    const int randomValue = random.Int(10, 20);
+    const bool randomOk = randomValue >= 10 && randomValue <= 20 &&
+                          !random.Chance(0.0) && random.Chance(1.0);
+
+    const bool easingOk = std::abs(mygame::easing::Linear(0.25) - 0.25) < 0.001 &&
+                          std::abs(mygame::easing::EaseInQuad(0.5) - 0.25) < 0.001;
+
+    mygame::SpriteAnimation animation(kImageId, 2, 3, 0.1, false);
+    animation.Play();
+    animation.Update(0.21);
+    const bool animationAdvanced = animation.FrameIndex() == 4 && animation.Playing();
+    animation.Update(0.11);
+    const bool animationOk = animationAdvanced && animation.FrameIndex() == 4 && animation.Finished();
+
+    const bool fileWritten = mygame::file::WriteAllText("tmp/mygame_fileutil.txt", "file-util-ok");
+    const auto fileText = mygame::file::ReadAllText("tmp/mygame_fileutil.txt");
+    const bool fileOk = fileWritten && fileText && *fileText == "file-util-ok" &&
+                        mygame::file::Exists("tmp/mygame_fileutil.txt");
+
+    const mygame::RectF rectA{0.0f, 0.0f, 100.0f, 100.0f};
+    const mygame::RectF rectB{75.0f, 75.0f, 50.0f, 50.0f};
+    const mygame::CircleF circle{{50.0f, 50.0f}, 10.0f};
+    const bool collisionOk = mygame::collision::Intersects(rectA, rectB) &&
+                             mygame::collision::Intersects(rectA, circle) &&
+                             mygame::collision::Contains(rectA, mygame::Vec2{25.0f, 25.0f});
+
+    mygame::Camera2D camera;
+    camera.SetViewport(320.0f, 180.0f);
+    camera.SetWorldBounds({0.0f, 0.0f, 1000.0f, 1000.0f});
+    camera.SetPosition({100.0f, 200.0f});
+    const auto screenPoint = camera.WorldToScreen({150.0f, 260.0f});
+    const auto worldPoint = camera.ScreenToWorld(screenPoint);
+    const bool cameraOk = std::abs(screenPoint.x - 50.0f) < 0.001f &&
+                          std::abs(screenPoint.y - 60.0f) < 0.001f &&
+                          std::abs(worldPoint.x - 150.0f) < 0.001f &&
+                          std::abs(worldPoint.y - 260.0f) < 0.001f;
+
     logger.Initialize("log/myGameUtil-sample.log", 1024 * 1024, mygame::Logger::Level::Trace);
     MYGAME_LOG_INFO("myGameUtil BasicSample started");
     MYGAME_LOG_INFO(std::string("IniConfig: ") + Ok(iniOk));
@@ -157,6 +203,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     MYGAME_LOG_INFO(std::string("Base64: ") + Ok(base64Ok));
     MYGAME_LOG_INFO(std::string("SaveData: ") + Ok(saveOk));
     MYGAME_LOG_INFO(std::string("SceneManager: ") + Ok(sceneOk));
+    MYGAME_LOG_INFO(std::string("Timer: ") + Ok(timerOk));
+    MYGAME_LOG_INFO(std::string("Random: ") + Ok(randomOk));
+    MYGAME_LOG_INFO(std::string("Easing: ") + Ok(easingOk));
+    MYGAME_LOG_INFO(std::string("SpriteAnimation: ") + Ok(animationOk));
+    MYGAME_LOG_INFO(std::string("FileUtil: ") + Ok(fileOk));
+    MYGAME_LOG_INFO(std::string("Collision2D: ") + Ok(collisionOk));
+    MYGAME_LOG_INFO(std::string("Camera2D: ") + Ok(cameraOk));
 
     while (ProcessMessage() == 0) {
         input.Update();
@@ -168,21 +221,39 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         ClearDrawScreen();
         DrawString(24, 20, "myGameUtil BasicSample", GetColor(255, 255, 255));
-        DrawString(24, 55, "ESC: exit / SPACE: play test SE / F1: logger overlay", GetColor(220, 220, 220));
-        DrawFormatString(24, 95, GetColor(255, 255, 255), "InputManager   : OK   SPACE hold = %u", input.HoldFrames(KEY_INPUT_SPACE));
-        DrawFormatString(24, 120, iniOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "IniConfig      : %s", Ok(iniOk));
-        DrawFormatString(24, 145, imageOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "ImageManager   : %s", Ok(imageOk));
-        DrawFormatString(24, 170, soundOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SoundManager   : %s", Ok(soundOk));
-        DrawFormatString(24, 195, singletonOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "Singleton      : %s", Ok(singletonOk));
-        DrawFormatString(24, 220, base64Ok ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "Base64         : %s", Ok(base64Ok));
-        DrawFormatString(24, 245, saveOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SaveData       : %s", Ok(saveOk));
-        DrawFormatString(24, 270, sceneOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SceneManager   : %s", Ok(sceneOk));
-        DrawString(24, 295, "Logger         : OK (log/myGameUtil-sample.log)", GetColor(120, 255, 120));
+        DrawString(24, 50, "ESC: exit / SPACE: play test SE / F1: logger overlay", GetColor(220, 220, 220));
+
+        const int okColor = GetColor(120, 255, 120);
+        const int ngColor = GetColor(255, 120, 120);
+        int y = 90;
+        auto drawStatus = [&](const char* name, bool ok) {
+            DrawFormatString(24, y, ok ? okColor : ngColor, "%-16s: %s", name, Ok(ok));
+            y += 24;
+        };
+
+        DrawFormatString(24, y, GetColor(255, 255, 255), "InputManager    : OK   SPACE hold = %u",
+                         static_cast<unsigned>(input.HoldFrames(KEY_INPUT_SPACE)));
+        y += 24;
+        drawStatus("IniConfig", iniOk);
+        drawStatus("ImageManager", imageOk);
+        drawStatus("SoundManager", soundOk);
+        drawStatus("Singleton", singletonOk);
+        drawStatus("Base64", base64Ok);
+        drawStatus("SaveData", saveOk);
+        drawStatus("SceneManager", sceneOk);
+        drawStatus("Timer", timerOk);
+        drawStatus("Random", randomOk);
+        drawStatus("Easing", easingOk);
+        drawStatus("SpriteAnimation", animationOk);
+        drawStatus("FileUtil", fileOk);
+        drawStatus("Collision2D", collisionOk);
+        drawStatus("Camera2D", cameraOk);
+        DrawString(24, y, "Logger          : OK (log/myGameUtil-sample.log)", okColor);
 
         if (imageOk) {
-            DrawString(24, 340, "ImageManager test image:", GetColor(220, 220, 220));
-            images.Draw(kImageId, 24, 370);
-            images.DrawRotated(kImageId, 160.0f, 402.0f, 1.5, GetNowCount() / 700.0);
+            DrawString(520, 100, "ImageManager test image:", GetColor(220, 220, 220));
+            images.Draw(kImageId, 520, 135);
+            images.DrawRotated(kImageId, 670.0f, 167.0f, 1.5, GetNowCount() / 700.0);
         }
 
         logger.UpdateAndDrawOverlay();
