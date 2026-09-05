@@ -3,11 +3,39 @@
 
 #include <cstdint>
 #include <fstream>
+#include <memory>
+#include <optional>
 #include <string>
 
 namespace {
 constexpr int kImageId = 1;
 constexpr int kSoundId = 1;
+
+class SampleSingleton : public mygame::Singleton<SampleSingleton> {
+    friend class mygame::Singleton<SampleSingleton>;
+private:
+    SampleSingleton() = default;
+};
+
+enum class SampleSceneId { Smoke };
+
+class SmokeScene : public mygame::Scene<SampleSceneId> {
+public:
+    SmokeScene(bool& entered, bool& exited)
+        : entered_(entered), exited_(exited) {}
+
+    void OnEnter() override { entered_ = true; }
+    void OnExit() override { exited_ = true; }
+    void Update() override { finished_ = true; }
+    void Draw() override {}
+    bool IsFinished() const override { return finished_; }
+    std::optional<SampleSceneId> NextScene() const override { return std::nullopt; }
+
+private:
+    bool& entered_;
+    bool& exited_;
+    bool finished_ = false;
+};
 
 void WriteU16(std::ofstream& out, std::uint16_t v) {
     const char b[] = {static_cast<char>(v), static_cast<char>(v >> 8)};
@@ -52,7 +80,6 @@ bool CreateTestWav(const char* path) {
     WriteU32(out, sampleRate); WriteU32(out, sampleRate * 2); WriteU16(out, 2); WriteU16(out, 16);
     out.write("data", 4); WriteU32(out, dataSize);
     for (std::uint32_t i = 0; i < samples; ++i) {
-        // 440 Hz square wave. It is intentionally simple and generated only for the smoke test.
         const bool high = ((i * 880 / sampleRate) % 2) == 0;
         const std::int16_t sample = high ? 6000 : -6000;
         WriteU16(out, static_cast<std::uint16_t>(sample));
@@ -72,7 +99,7 @@ const char* Ok(bool value) { return value ? "OK" : "NG"; }
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ChangeWindowMode(TRUE);
-    SetGraphMode(960, 600, 32);
+    SetGraphMode(960, 640, 32);
     if (DxLib_Init() == -1) return -1;
     SetDrawScreen(DX_SCREEN_BACK);
 
@@ -92,11 +119,43 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     const bool imageOk = bmpCreated && images.Load(kImageId, "mygame_sample.bmp");
     const bool soundOk = wavCreated && sounds.LoadSe(kSoundId, "mygame_sample.wav");
 
+    auto& singletonA = SampleSingleton::GetInstance();
+    auto& singletonB = SampleSingleton::GetInstance();
+    const bool singletonOk = &singletonA == &singletonB;
+
+    const std::string base64Source = "myGameUtil";
+    const std::string base64Encoded = mygame::encoding::Base64Encode(base64Source);
+    const auto base64Decoded = mygame::encoding::Base64Decode(base64Encoded);
+    const bool base64Ok = base64Decoded && *base64Decoded == base64Source;
+
+    constexpr const char* saveText = "stage=3;score=12345";
+    constexpr const char* saveKey = "sample-key";
+    const std::string saveEncoded = mygame::save::SaveData::Encode(saveText, saveKey);
+    const auto saveDecoded = mygame::save::SaveData::Decode(saveEncoded, saveKey);
+    const bool saveFileWritten = mygame::save::SaveData::SaveToFile("mygame_sample.sav", saveText, saveKey);
+    const auto saveFileLoaded = mygame::save::SaveData::LoadFromFile("mygame_sample.sav", saveKey);
+    const bool saveOk = saveDecoded && *saveDecoded == saveText &&
+                        saveFileWritten && saveFileLoaded && *saveFileLoaded == saveText;
+
+    bool sceneEntered = false;
+    bool sceneExited = false;
+    mygame::SceneManager<SampleSceneId> sceneManager(
+        [&](const SampleSceneId&) -> std::unique_ptr<mygame::Scene<SampleSceneId>> {
+            return std::make_unique<SmokeScene>(sceneEntered, sceneExited);
+        });
+    const bool sceneStarted = sceneManager.Start(SampleSceneId::Smoke);
+    sceneManager.Update();
+    const bool sceneOk = sceneStarted && sceneEntered && sceneExited && !sceneManager.Running();
+
     logger.Initialize("log/myGameUtil-sample.log", 1024 * 1024, mygame::Logger::Level::Trace);
     MYGAME_LOG_INFO("myGameUtil BasicSample started");
     MYGAME_LOG_INFO(std::string("IniConfig: ") + Ok(iniOk));
     MYGAME_LOG_INFO(std::string("ImageManager: ") + Ok(imageOk));
     MYGAME_LOG_INFO(std::string("SoundManager: ") + Ok(soundOk));
+    MYGAME_LOG_INFO(std::string("Singleton: ") + Ok(singletonOk));
+    MYGAME_LOG_INFO(std::string("Base64: ") + Ok(base64Ok));
+    MYGAME_LOG_INFO(std::string("SaveData: ") + Ok(saveOk));
+    MYGAME_LOG_INFO(std::string("SceneManager: ") + Ok(sceneOk));
 
     while (ProcessMessage() == 0) {
         input.Update();
@@ -109,16 +168,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         ClearDrawScreen();
         DrawString(24, 20, "myGameUtil BasicSample", GetColor(255, 255, 255));
         DrawString(24, 55, "ESC: exit / SPACE: play test SE / F1: logger overlay", GetColor(220, 220, 220));
-        DrawFormatString(24, 100, GetColor(255, 255, 255), "InputManager   : OK   SPACE hold = %u", input.HoldFrames(KEY_INPUT_SPACE));
-        DrawFormatString(24, 125, iniOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "IniConfig      : %s", Ok(iniOk));
-        DrawFormatString(24, 150, imageOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "ImageManager   : %s", Ok(imageOk));
-        DrawFormatString(24, 175, soundOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SoundManager   : %s", Ok(soundOk));
-        DrawString(24, 200, "Logger         : OK (log/myGameUtil-sample.log)", GetColor(120, 255, 120));
+        DrawFormatString(24, 95, GetColor(255, 255, 255), "InputManager   : OK   SPACE hold = %u", input.HoldFrames(KEY_INPUT_SPACE));
+        DrawFormatString(24, 120, iniOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "IniConfig      : %s", Ok(iniOk));
+        DrawFormatString(24, 145, imageOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "ImageManager   : %s", Ok(imageOk));
+        DrawFormatString(24, 170, soundOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SoundManager   : %s", Ok(soundOk));
+        DrawFormatString(24, 195, singletonOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "Singleton      : %s", Ok(singletonOk));
+        DrawFormatString(24, 220, base64Ok ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "Base64         : %s", Ok(base64Ok));
+        DrawFormatString(24, 245, saveOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SaveData       : %s", Ok(saveOk));
+        DrawFormatString(24, 270, sceneOk ? GetColor(120, 255, 120) : GetColor(255, 120, 120), "SceneManager   : %s", Ok(sceneOk));
+        DrawString(24, 295, "Logger         : OK (log/myGameUtil-sample.log)", GetColor(120, 255, 120));
 
         if (imageOk) {
-            DrawString(24, 245, "ImageManager test image:", GetColor(220, 220, 220));
-            images.Draw(kImageId, 24, 275);
-            images.DrawRotated(kImageId, 160.0f, 307.0f, 1.5, GetNowCount() / 700.0);
+            DrawString(24, 340, "ImageManager test image:", GetColor(220, 220, 220));
+            images.Draw(kImageId, 24, 370);
+            images.DrawRotated(kImageId, 160.0f, 402.0f, 1.5, GetNowCount() / 700.0);
         }
 
         logger.UpdateAndDrawOverlay();
