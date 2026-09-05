@@ -132,9 +132,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     constexpr const char* saveKey = "sample-key";
     const std::string saveEncoded = mygame::save::SaveData::Encode(saveText, saveKey);
     const auto saveDecoded = mygame::save::SaveData::Decode(saveEncoded, saveKey);
+    const auto wrongKeyDecoded = mygame::save::SaveData::Decode(saveEncoded, "wrong-key");
     const bool saveFileWritten = mygame::save::SaveData::SaveToFile("mygame_sample.sav", saveText, saveKey);
     const auto saveFileLoaded = mygame::save::SaveData::LoadFromFile("mygame_sample.sav", saveKey);
-    const bool saveOk = saveDecoded && *saveDecoded == saveText &&
+    const bool saveOk = saveDecoded && *saveDecoded == saveText && !wrongKeyDecoded &&
                         saveFileWritten && saveFileLoaded && *saveFileLoaded == saveText;
 
     bool sceneEntered = false;
