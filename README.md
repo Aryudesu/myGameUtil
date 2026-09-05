@@ -41,7 +41,7 @@ C++17 / DxLib 向けのゲーム制作共通Utilityです。
 - `Logger`: `log/myGameUtil-sample.log` が生成され、`F1` でログオーバーレイを表示できる。
 - `Singleton`: 同じインスタンスが返ることを検証する。
 - `Base64`: encode → decode の往復を検証する。
-- `SaveData`: メモリ上の往復と `mygame_sample.sav` の保存・読み込みを検証する。
+- `SaveData`: メモリ上の往復、誤キー拒否、`mygame_sample.sav` の保存・読み込みを検証する。
 - `SceneManager`: OnEnter → Update → OnExit → Quit の最小ライフサイクルを検証する。
 - `ESC`: 終了。
 
