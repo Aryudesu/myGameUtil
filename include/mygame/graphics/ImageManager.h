@@ -78,14 +78,11 @@ public:
 
     bool DrawRotated(ImageId id, float x, float y, double scale = 1.0,
                      double angle = 0.0, bool transparent = true,
-                     bool turnX = false, bool turnY = false,
                      std::size_t index = 0) const {
         const int handle = Handle(id, index);
         if (handle == -1) return false;
         return DrawRotaGraphF(x, y, scale, angle, handle,
-                              transparent ? TRUE : FALSE,
-                              turnX ? TRUE : FALSE,
-                              turnY ? TRUE : FALSE) == 0;
+                              transparent ? TRUE : FALSE) == 0;
     }
 
     void Destroy(ImageId id) {
