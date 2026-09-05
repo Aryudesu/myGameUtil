@@ -17,8 +17,15 @@ public:
     explicit SceneManager(Factory factory)
         : factory_(std::move(factory)) {}
 
+    ~SceneManager() {
+        if (current_) current_->OnExit();
+    }
+
     bool Start(const SceneId& firstScene) {
+        if (current_) current_->OnExit();
+        current_.reset();
         quitRequested_ = false;
+
         current_ = Create(firstScene);
         if (!current_) {
             quitRequested_ = true;
