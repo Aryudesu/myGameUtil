@@ -6,6 +6,8 @@ C++17 / DxLib 向けのゲーム制作共通Utilityです。
 
 ## Included utilities
 
+### Core / infrastructure
+
 - `InputManager`: Down / Pressed / Released / HoldFrames
 - `ImageManager`: 通常・分割画像の読み込み、描画、回転拡縮、破棄
 - `SoundManager`: SE / BGM の読み込み、再生、停止、音量管理
@@ -16,6 +18,16 @@ C++17 / DxLib 向けのゲーム制作共通Utilityです。
 - `Base64Encode` / `Base64Decode`: 標準的なBase64変換
 - `SaveData`: セーブデータ向けの軽量な可逆難読化・チェックサム・ファイル入出力
 
+### Gameplay helpers
+
+- `Timer` / `Cooldown` / `DeltaClock`: 秒ベースのタイマー、クールダウン、フレーム間delta time
+- `Random`: `std::mt19937` ベースの整数・実数・確率・Shuffle・Choice
+- `easing`: Linear / Quad / Cubic / Back と `Lerp`
+- `SpriteAnimation`: `ImageManager::LoadDivided` で読み込んだフレーム列の再生管理
+- `FileUtil`: テキスト/バイナリ読み書き、ディレクトリ生成、パス補助
+- `Collision2D`: `Vec2` / `RectF` / `CircleF` と Point/Rect/Circle の基本当たり判定
+- `Camera2D`: ワールド↔スクリーン変換、追従、ワールド境界クランプ、シェイク用オフセット
+
 ## Include all
 
 ```cpp
@@ -24,7 +36,7 @@ C++17 / DxLib 向けのゲーム制作共通Utilityです。
 
 ## Visual Studio での動作確認
 
-`sample/BasicSample.cpp` は現在のUtilityをまとめて確認するスモークテストです。画像・WAV・INI・セーブデータは実行時に自動生成するため、追加素材は不要です。
+`sample/BasicSample.cpp` は現在のUtilityをまとめて確認するスモークテストです。画像・WAV・INI・セーブデータ・FileUtil用ファイルは実行時に自動生成するため、追加素材は不要です。
 
 1. DxLibを使用できる空のC++プロジェクトを作成する（既存のDxLibプロジェクトに一時追加してもOK）。
 2. プロジェクトのプロパティ → `C/C++` → `全般` → `追加のインクルード ディレクトリ` に、このリポジトリの `include` フォルダを追加する。
@@ -32,22 +44,97 @@ C++17 / DxLib 向けのゲーム制作共通Utilityです。
 4. `sample/BasicSample.cpp` をプロジェクトへ追加する。
 5. x64など、普段DxLibを動かしている構成でビルドして実行する。
 
-起動後は次を確認できます。
+起動後は画面上で以下を `OK/NG` 表示します。
 
-- `InputManager`: SPACEの押下フレーム数が増える。
-- `IniConfig`: 自動生成INIの読み込みが `OK` になる。
-- `ImageManager`: 自動生成したチェック柄画像と回転画像が表示される。
-- `SoundManager`: `SPACE` を押すと短いテスト音が鳴る。
-- `Logger`: `log/myGameUtil-sample.log` が生成され、`F1` でログオーバーレイを表示できる。
-- `Singleton`: 同じインスタンスが返ることを検証する。
-- `Base64`: encode → decode の往復を検証する。
-- `SaveData`: メモリ上の往復、誤キー拒否、`mygame_sample.sav` の保存・読み込みを検証する。
-- `SceneManager`: OnEnter → Update → OnExit → Quit の最小ライフサイクルを検証する。
-- `ESC`: 終了。
+- InputManager / IniConfig / ImageManager / SoundManager / Logger
+- Singleton / Base64 / SaveData / SceneManager
+- Timer / Random / Easing / SpriteAnimation / FileUtil / Collision2D / Camera2D
 
-画面上の各項目が `OK` になり、SPACE/F1の操作ができれば基本動作確認完了です。
+`SPACE` でテストSE、`F1` でログオーバーレイ、`ESC` で終了です。全項目が `OK` になれば基本動作確認完了です。
 
-## Individual examples
+## Examples
+
+### Timer / Cooldown
+
+```cpp
+mygame::Timer timer(1.5);
+timer.Start();
+timer.Update(deltaSeconds);
+
+if (timer.FinishedThisUpdate()) {
+    // 1.5秒経過した瞬間
+}
+
+mygame::Cooldown shotCooldown(0.2);
+shotCooldown.Update(deltaSeconds);
+if (shotCooldown.TryUse()) {
+    // 発射可能
+}
+```
+
+### Random
+
+```cpp
+mygame::Random random;
+const int damage = random.Int(8, 12);
+if (random.Chance(0.1)) {
+    // 10%で発生
+}
+random.Shuffle(cards.begin(), cards.end());
+```
+
+### Easing
+
+```cpp
+const double t = timer.Progress();
+const double eased = mygame::easing::EaseOutCubic(t);
+const float x = mygame::easing::Lerp(0.0f, 300.0f, eased);
+```
+
+### SpriteAnimation
+
+```cpp
+auto& images = mygame::ImageManager::GetInstance();
+images.LoadDivided(10, "player.png", 4, 1, 64, 64);
+
+mygame::SpriteAnimation walk(10, 0, 4, 0.1, true);
+walk.Play();
+walk.Update(deltaSeconds);
+walk.Draw(100, 200);
+```
+
+### FileUtil
+
+```cpp
+mygame::file::WriteAllText("data/config/sample.txt", "hello");
+const auto text = mygame::file::ReadAllText("data/config/sample.txt");
+```
+
+`WriteAllText` / `WriteAllBytes` は既定で親ディレクトリを自動生成します。
+
+### Collision2D
+
+```cpp
+mygame::RectF player{10, 10, 32, 48};
+mygame::RectF block{30, 40, 32, 32};
+
+if (mygame::collision::Intersects(player, block)) {
+    // 接触
+}
+```
+
+### Camera2D
+
+```cpp
+mygame::Camera2D camera;
+camera.SetViewport(1280, 720);
+camera.SetWorldBounds({0, 0, 5000, 2000});
+camera.Follow(playerPosition, 0.1f);
+
+const mygame::Vec2 screen = camera.WorldToScreen(worldPosition);
+```
+
+`SetShakeOffset()` は揺れ量の生成方法を固定せず、Randomや独自のシェイク制御から値を渡す設計です。
 
 ### InputManager
 
@@ -103,7 +190,7 @@ auto& state = GameState::GetInstance();
 
 ### SceneManager
 
-`SceneId` の型は各ゲーム側で自由に定義し、生成方法だけFactoryとして渡します。ライブラリ側は `Title` や `Game` といった具体的なIDを知りません。
+`SceneId` の型は各ゲーム側で自由に定義し、生成方法だけFactoryとして渡します。
 
 ```cpp
 enum class SceneId { Title, Game };
@@ -141,16 +228,16 @@ mygame::save::SaveData::SaveToFile("save.dat", "stage=3;score=1200", "game-key")
 const auto data = mygame::save::SaveData::LoadFromFile("save.dat", "game-key");
 ```
 
-`SaveData` は旧 `Cipher` の用途を整理したものです。Base64とXORストリームによる可逆難読化、FNV-1aチェックサムによる簡易的な破損・キー不一致検出を行います。
+`SaveData` はBase64とXORストリームによる可逆難読化、FNV-1aチェックサムによる簡易的な破損・キー不一致検出を行います。
 
-**これは暗号化でも、攻撃者による改ざんを防止する仕組みでもありません。** パスワード、トークン、個人情報など秘密情報の保護には使用しないでください。プレイヤーがセーブファイルをテキストエディタでうっかり書き換えにくくする、といったゲームデータ用途を想定しています。
+**これは暗号化でも、攻撃者による改ざんを防止する仕組みでもありません。** パスワード、トークン、個人情報など秘密情報の保護には使用しないでください。
 
 ## Requirements
 
 - C++17 以上
-- DxLib
+- DxLib（`InputManager` / `ImageManager` / `SoundManager` / `Logger` / `SpriteAnimation` 使用時）
 
-`IniConfig`、`Singleton`、`Scene`、`Base64`、`SaveData` 自体はDxLibに依存しません。
+`IniConfig`、`Singleton`、`Scene`、`Base64`、`SaveData`、`Timer`、`Random`、`Easing`、`FileUtil`、`Collision2D`、`Camera2D` 自体はDxLibに依存しません。
 
 ## Design policy
 
