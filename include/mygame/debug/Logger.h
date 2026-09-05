@@ -3,6 +3,7 @@
 #include <DxLib.h>
 
 #include <chrono>
+#include <ctime>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -10,7 +11,6 @@
 #include <mutex>
 #include <sstream>
 #include <string>
-#include <ctime>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -60,8 +60,7 @@ public:
 
         const auto now = std::chrono::system_clock::now();
         const auto time = std::chrono::system_clock::to_time_t(now);
-        const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch()) % 1000;
+        const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
         const auto local = SafeLocalTime(time);
 
         std::ostringstream stream;
@@ -238,10 +237,12 @@ private:
 
 } // namespace mygame
 
+#define MYGAME_DETAIL_CONCAT_INNER(a, b) a##b
+#define MYGAME_DETAIL_CONCAT(a, b) MYGAME_DETAIL_CONCAT_INNER(a, b)
 #define MYGAME_LOG_TRACE(message) ::mygame::Logger::GetInstance().Log(::mygame::Logger::Level::Trace, __FILE__, __LINE__, (message))
 #define MYGAME_LOG_DEBUG(message) ::mygame::Logger::GetInstance().Log(::mygame::Logger::Level::Debug, __FILE__, __LINE__, (message))
 #define MYGAME_LOG_INFO(message)  ::mygame::Logger::GetInstance().Log(::mygame::Logger::Level::Info,  __FILE__, __LINE__, (message))
 #define MYGAME_LOG_WARN(message)  ::mygame::Logger::GetInstance().Log(::mygame::Logger::Level::Warn,  __FILE__, __LINE__, (message))
 #define MYGAME_LOG_ERROR(message) ::mygame::Logger::GetInstance().Log(::mygame::Logger::Level::Error, __FILE__, __LINE__, (message))
 #define MYGAME_LOG_FATAL(message) ::mygame::Logger::GetInstance().Log(::mygame::Logger::Level::Fatal, __FILE__, __LINE__, (message))
-#define MYGAME_LOG_TIME_SCOPE(name) ::mygame::LogTimeScope mygameLogTimeScope##__LINE__{(name), __FILE__, __LINE__}
+#define MYGAME_LOG_TIME_SCOPE(name) ::mygame::LogTimeScope MYGAME_DETAIL_CONCAT(mygameLogTimeScope_, __LINE__){(name), __FILE__, __LINE__}
